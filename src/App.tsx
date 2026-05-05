@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
+import FoldersPage from './pages/FoldersPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -25,9 +26,11 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"  element={<DashboardPage />} />
         <Route path="documents"  element={<DocumentsPage />} />
+        <Route path="folders" element={<FoldersPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    
   )
 }
