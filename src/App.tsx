@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage'
 import DocumentsPage from './pages/DocumentsPage'
 import FoldersPage from './pages/FoldersPage'
 import WorkflowsPage from './pages/WorkflowsPage'
+import AuditPage from './pages/AuditPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="documents"  element={<DocumentsPage />} />
         <Route path="folders" element={<FoldersPage />} />
         <Route path="workflows" element={<WorkflowsPage />} />
+        <Route path="audit" element={<AuditPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

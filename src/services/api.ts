@@ -92,3 +92,10 @@ export const workflowService = {
 export const userService = {
   list: () => api.get('/users'),
 }
+
+// ── Audit ─────────────────────────────────────────────────────────────────
+export const auditService = {
+  list:   (params?: object) => api.get('/audit', { params }),
+  export: (params?: object) => api.get('/audit/export', { params, responseType: 'blob' }),
+  stats:  ()                => api.get('/audit/stats'),
+}
