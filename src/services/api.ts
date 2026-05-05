@@ -74,3 +74,21 @@ export const tagService = {
   create: (data: object) => api.post('/tags', data),
   delete: (id: number)   => api.delete(`/tags/${id}`),
 }
+
+// ── Workflows ─────────────────────────────────────────────────────────────
+export const workflowService = {
+  list:             (params?: object) => api.get('/workflows', { params }),
+  get:              (id: number)      => api.get(`/workflows/${id}`),
+  create:           (data: object)    => api.post('/workflows', data),
+  approve:          (id: number, comment?: string) =>
+    api.post(`/workflows/${id}/approve`, { comment }),
+  reject:           (id: number, comment: string) =>
+    api.post(`/workflows/${id}/reject`, { comment }),
+  cancel:           (id: number)      => api.post(`/workflows/${id}/cancel`),
+  pendingApprovals: ()                => api.get('/pending-approvals'),
+}
+
+// ── Utilisateurs ──────────────────────────────────────────────────────────
+export const userService = {
+  list: () => api.get('/users'),
+}
