@@ -4,6 +4,7 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: { Accept: 'application/json' },
 })
+console.log('API URL:', import.meta.env.VITE_API_URL)
 
 // Injecter le token automatiquement
 api.interceptors.request.use((config) => {
@@ -90,7 +91,20 @@ export const workflowService = {
 
 // ── Utilisateurs ──────────────────────────────────────────────────────────
 export const userService = {
-  list: () => api.get('/users'),
+  list: (params?: object) =>
+    api.get('/users', { params }),
+  get: (id: number) =>
+    api.get(`/users/${id}`),
+  create: (data: object) =>
+    api.post('/users', data),
+  update: (id: number, data: object) =>
+    api.put(`/users/${id}`, data),
+  delete: (id: number) =>
+    api.delete(`/users/${id}`),
+  changePassword: (id: number, data: object) =>
+    api.put(`/users/${id}/password`, data),
+  toggleStatus: (id: number) =>
+    api.post(`/users/${id}/toggle-status`),
 }
 
 // ── Audit ─────────────────────────────────────────────────────────────────
