@@ -64,7 +64,7 @@ export default function Sidebar() {
           <div className="w-9 h-9 rounded-full bg-green-700 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
             {user?.name?.[0] ?? '?'}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-white text-sm font-semibold truncate">{user?.name}</p>
             <p className="text-green-400 text-xs capitalize">{user?.roles?.[0]}</p>
           </div>

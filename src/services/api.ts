@@ -56,6 +56,8 @@ export const documentService = {
     api.post(`/documents/${id}/comments`, { content }),
 }
 
+
+
 // ── Dossiers ──────────────────────────────────────────────────────────────
 export const folderService = {
   list:   (params?: object) => api.get('/folders', { params }),
@@ -64,6 +66,7 @@ export const folderService = {
   create: (data: object)    => api.post('/folders', data),
   update: (id: number, data: object) => api.put(`/folders/${id}`, data),
   delete: (id: number)      => api.delete(`/folders/${id}`),
+  myFolders: () => api.get('/my-folders'),
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -127,4 +130,12 @@ export const groupService = {
   pendingAccess:      ()                    => api.get('/pending-folder-access'),
   approveAccess:      (groupId: number, folderId: number) =>
     api.put(`/user-groups/${groupId}/folder-access/${folderId}/approve`),
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────
+export const notificationService = {
+  list:    ()           => api.get('/notifications'),
+  unread:  ()           => api.get('/notifications/unread'),
+  markRead:(id: string) => api.post(`/notifications/${id}/read`),
+  markAll: ()           => api.post('/notifications/read-all'),
 }

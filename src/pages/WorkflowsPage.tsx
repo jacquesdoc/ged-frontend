@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { workflowService, documentService, userService } from '../services/api'
+import PreviewModal from '../components/documents/PreviewModal'
 
 interface Workflow {
   id: number
@@ -10,7 +11,7 @@ interface Workflow {
   notes: string
   due_date: string
   created_at: string
-  document?: { id: number; name: string }
+  document?: { id: number; name: string; mime_type?: string; extension?: string }
   requester?: { name: string }
   approvals?: Array<{
     id: number
@@ -38,13 +39,15 @@ const typeLabels: Record<string, string> = {
 }
 
 export default function WorkflowsPage() {
-  const [workflows,  setWorkflows]  = useState<Workflow[]>([])
-  const [pending,    setPending]    = useState<any[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [showModal,  setShowModal]  = useState(false)
-  const [showDetail, setShowDetail] = useState<Workflow | null>(null)
-  const [documents,  setDocuments]  = useState<any[]>([])
-  const [users,      setUsers]      = useState<any[]>([])
+  const [workflows,     setWorkflows]     = useState<Workflow[]>([])
+  const [pending,       setPending]       = useState<any[]>([])
+  const [loading,       setLoading]       = useState(true)
+  const [showModal,     setShowModal]     = useState(false)
+  const [showDetail,    setShowDetail]    = useState<Workflow | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [previewWf,     setPreviewWf]     = useState<Workflow | null>(null)
+  const [documents,     setDocuments]     = useState<any[]>([])
+  const [users,         setUsers]         = useState<any[]>([])
 
   // Formulaire création
   const [docId,       setDocId]       = useState('')
@@ -79,7 +82,7 @@ export default function WorkflowsPage() {
     try {
       const [docsRes, usersRes] = await Promise.all([
         documentService.list({ per_page: 100 }),
-        userService ? userService.list() : Promise.resolve({ data: [] }),
+        userService.list(),
       ])
       setDocuments(docsRes.data.data || [])
       setUsers(usersRes.data.data || usersRes.data || [])
@@ -89,6 +92,20 @@ export default function WorkflowsPage() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  // ── Charger les détails complets avec approbations ──────────────────────
+  const handleShowDetail = async (wf: Workflow) => {
+    setShowDetail(wf)
+    setLoadingDetail(true)
+    try {
+      const { data } = await workflowService.get(wf.id)
+      setShowDetail(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
 
   const openCreate = async () => {
     setDocId('')
@@ -109,18 +126,18 @@ export default function WorkflowsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!docId)               { setError('Sélectionnez un document.'); return }
+    if (!docId)                   { setError('Sélectionnez un document.'); return }
     if (approverIds.length === 0) { setError('Ajoutez au moins un approbateur.'); return }
 
     setSaving(true)
     setError('')
     try {
       await workflowService.create({
-        document_id:   parseInt(docId),
+        document_id:  parseInt(docId),
         type,
-        approver_ids:  approverIds,
+        approver_ids: approverIds,
         notes,
-        due_date:      dueDate || undefined,
+        due_date:     dueDate || undefined,
       })
       setShowModal(false)
       fetchAll()
@@ -149,7 +166,7 @@ export default function WorkflowsPage() {
   }
 
   const handleCancel = async (id: number) => {
-    if (!confirm('Annuler ce workflow ?')) return
+    if (!window.confirm('Annuler ce workflow ?')) return
     try {
       await workflowService.cancel(id)
       fetchAll()
@@ -299,13 +316,25 @@ export default function WorkflowsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
+                          {/* Détails avec approbations */}
                           <button
-                            onClick={() => setShowDetail(wf)}
+                            onClick={() => handleShowDetail(wf)}
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Détails"
+                            title="Voir les détails et motifs"
                           >
-                            👁️
+                            📋
                           </button>
+                          {/* Prévisualiser le document */}
+                          {wf.document && (
+                            <button
+                              onClick={() => setPreviewWf(wf)}
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Prévisualiser le document"
+                            >
+                              👁️
+                            </button>
+                          )}
+                          {/* Annuler */}
                           {wf.status === 'in_review' && (
                             <button
                               onClick={() => handleCancel(wf.id)}
@@ -335,43 +364,27 @@ export default function WorkflowsPage() {
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
-
-              {/* Document */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Document <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={docId}
-                  onChange={(e) => setDocId(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none bg-white"
-                >
+                <select value={docId} onChange={(e) => setDocId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none bg-white">
                   <option value="">Sélectionner un document...</option>
                   {documents.map((d) => (
-                    <option key={d.id} value={d.id}>
-                        {d.name ?? 'Document sans nom'}
-                    </option>
-                    ))}
+                    <option key={d.id} value={d.id}>{d.name ?? 'Document sans nom'}</option>
+                  ))}
                 </select>
               </div>
-
-              {/* Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type de workflow
-                </label>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none bg-white"
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type de workflow</label>
+                <select value={type} onChange={(e) => setType(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none bg-white">
                   {Object.entries(typeLabels).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
               </div>
-
-              {/* Approbateurs */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Approbateurs <span className="text-red-500">*</span>
@@ -379,88 +392,196 @@ export default function WorkflowsPage() {
                 </label>
                 <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-3">
                   {users.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-2">
-                      Chargement des utilisateurs...
-                    </p>
+                    <p className="text-sm text-gray-400 text-center py-2">Chargement...</p>
                   ) : (
                     users.map((u) => (
-                    <label key={u.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 rounded-lg">
-                        <input
-                        type="checkbox"
-                        checked={approverIds.includes(u.id)}
-                        onChange={() => toggleApprover(u.id)}
-                        className="w-4 h-4 accent-green-700"
-                        />
+                      <label key={u.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1 rounded-lg">
+                        <input type="checkbox" checked={approverIds.includes(u.id)}
+                          onChange={() => toggleApprover(u.id)} className="w-4 h-4 accent-green-700" />
                         <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-xs font-bold">
-                        {u.name ? u.name[0] : '?'}
+                          {u.name ? u.name[0] : '?'}
                         </div>
                         <div>
-                        <p className="text-sm font-medium text-gray-800">
-                            {u.name ?? 'Utilisateur'}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                            {u.email ?? ''}
-                        </p>
+                          <p className="text-sm font-medium text-gray-800">{u.name ?? 'Utilisateur'}</p>
+                          <p className="text-xs text-gray-400">{u.email ?? ''}</p>
                         </div>
                         {approverIds.includes(u.id) && (
-                        <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
+                          <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">
                             Étape {approverIds.indexOf(u.id) + 1}
-                        </span>
+                          </span>
                         )}
-                    </label>
+                      </label>
                     ))
                   )}
                 </div>
               </div>
-
-              {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Instructions pour les approbateurs..."
-                  rows={2}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none resize-none"
-                />
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Instructions pour les approbateurs..." rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none resize-none" />
               </div>
-
-              {/* Date limite */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date limite
-                </label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date limite</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none" />
               </div>
-
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">
-                  {error}
-                </div>
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl">{error}</div>
               )}
-
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                >
+                <button type="button" onClick={() => setShowModal(false)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
                   Annuler
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-300 text-white font-semibold rounded-xl text-sm transition-colors"
-                >
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-300 text-white font-semibold rounded-xl text-sm transition-colors">
                   {saving ? 'Création...' : 'Créer le workflow'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal détails workflow */}
+      {showDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Détails du workflow</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{showDetail.document?.name}</p>
+              </div>
+              <button onClick={() => setShowDetail(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-10">
+                  <div className="w-8 h-8 border-3 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="ml-3 text-sm text-gray-400">Chargement des détails...</span>
+                </div>
+              ) : (
+                <>
+                  {/* Infos générales */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-400 mb-1">Type</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {typeLabels[showDetail.type] || showDetail.type}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-400 mb-1">Statut</p>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        statusConfig[showDetail.status]?.classes || 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {statusConfig[showDetail.status]?.label || showDetail.status}
+                      </span>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-400 mb-1">Demandeur</p>
+                      <p className="text-sm font-semibold text-gray-800">{showDetail.requester?.name}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <p className="text-xs text-gray-400 mb-1">Échéance</p>
+                      <p className="text-sm font-semibold text-gray-800">
+                        {showDetail.due_date
+                          ? new Date(showDetail.due_date).toLocaleDateString('fr-FR')
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {showDetail.notes && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-blue-700 mb-1">📋 Notes</p>
+                      <p className="text-sm text-blue-800">{showDetail.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Étapes d'approbation */}
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 mb-3">
+                      Circuit de validation ({showDetail.current_step}/{showDetail.steps?.length})
+                    </p>
+                    <div className="space-y-3">
+                      {showDetail.approvals && showDetail.approvals.length > 0 ? (
+                        showDetail.approvals.map((approval, i) => (
+                          <div key={approval.id}
+                            className={`p-4 rounded-xl border ${
+                              approval.status === 'approved' ? 'bg-green-50 border-green-200' :
+                              approval.status === 'rejected' ? 'bg-red-50 border-red-200' :
+                              'bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-white border flex items-center justify-center text-xs font-bold text-gray-600">
+                                  {i + 1}
+                                </div>
+                                <span className="text-sm font-semibold text-gray-800">
+                                  {approval.approver?.name ?? 'Approbateur'}
+                                </span>
+                              </div>
+                              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                approval.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                approval.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {approval.status === 'approved' ? '✅ Approuvé' :
+                                 approval.status === 'rejected' ? '❌ Rejeté' :
+                                 '⏳ En attente'}
+                              </span>
+                            </div>
+
+                            {approval.acted_at && (
+                              <p className="text-xs text-gray-400 mb-2">
+                                🕐 {new Date(approval.acted_at).toLocaleString('fr-FR')}
+                              </p>
+                            )}
+
+                            {/* Motif visible par tous */}
+                            {approval.comment && (
+                              <div className={`mt-2 p-3 rounded-lg ${
+                                approval.status === 'rejected'
+                                  ? 'bg-red-100 border border-red-200'
+                                  : 'bg-green-100 border border-green-200'
+                              }`}>
+                                <p className={`text-xs font-semibold mb-1 ${
+                                  approval.status === 'rejected' ? 'text-red-700' : 'text-green-700'
+                                }`}>
+                                  {approval.status === 'rejected' ? '❌ Motif du rejet :' : '💬 Commentaire :'}
+                                </p>
+                                <p className={`text-sm italic ${
+                                  approval.status === 'rejected' ? 'text-red-800' : 'text-green-800'
+                                }`}>
+                                  "{approval.comment}"
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 bg-gray-50 rounded-xl">
+                          <p className="text-sm text-gray-400">Aucune approbation enregistrée</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100">
+              <button onClick={() => setShowDetail(null)}
+                className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -470,30 +591,34 @@ export default function WorkflowsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Motif du rejet</h2>
-            <textarea
-              value={rejectComment}
-              onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="Expliquez pourquoi vous rejetez ce document..."
-              rows={4}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:outline-none resize-none mb-4"
-            />
+            <textarea value={rejectComment} onChange={(e) => setRejectComment(e.target.value)}
+              placeholder="Expliquez pourquoi vous rejetez ce document..." rows={4}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-red-400 focus:outline-none resize-none mb-4" />
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowReject(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50"
-              >
+              <button onClick={() => setShowReject(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
                 Annuler
               </button>
-              <button
-                onClick={handleReject}
-                disabled={!rejectComment.trim()}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white font-semibold rounded-xl text-sm transition-colors"
-              >
+              <button onClick={handleReject} disabled={!rejectComment.trim()}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white font-semibold rounded-xl text-sm transition-colors">
                 Confirmer le rejet
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal prévisualisation document du workflow */}
+      {previewWf?.document && (
+        <PreviewModal
+          document={{
+            id:        previewWf.document.id,
+            name:      previewWf.document.name,
+            mime_type: previewWf.document.mime_type || '',
+            extension: previewWf.document.extension || '',
+          }}
+          onClose={() => setPreviewWf(null)}
+        />
       )}
     </div>
   )

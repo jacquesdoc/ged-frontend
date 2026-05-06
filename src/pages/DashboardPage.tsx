@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { dashboardService } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import NotificationCenter from '../components/ui/NotificationCenter'
 
 export default function DashboardPage() {
   const navigate  = useNavigate()
@@ -50,18 +51,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
-            <p className="text-xs text-gray-500">{user?.roles?.[0]}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
-          >
-            Déconnexion
-          </button>
-        </div>
+
       </header>
 
       {/* Contenu */}
