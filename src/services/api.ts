@@ -58,16 +58,24 @@ export const documentService = {
 
 
 
-// ── Dossiers ──────────────────────────────────────────────────────────────
-export const folderService = {
-  list:   (params?: object) => api.get('/folders', { params }),
-  tree:   ()                => api.get('/folders/tree/all'),
-  get:    (id: number)      => api.get(`/folders/${id}`),
-  create: (data: object)    => api.post('/folders', data),
-  update: (id: number, data: object) => api.put(`/folders/${id}`, data),
-  delete: (id: number)      => api.delete(`/folders/${id}`),
-  myFolders: () => api.get('/my-folders'),
-}
+  // ── Dossiers ──────────────────────────────────────────────────────────────
+  export const folderService = {
+    list:          (params?: object) => api.get('/folders', { params }),
+    tree:          ()                => api.get('/folders/tree/all'),
+    get:           (id: number)      => api.get(`/folders/${id}`),
+    create:        (data: object)    => api.post('/folders', data),
+    update:        (id: number, data: object) => api.put(`/folders/${id}`, data),
+    delete:        (id: number)      => api.delete(`/folders/${id}`),
+    myFolders:     ()                => api.get('/my-folders'),
+    requestAccess: (id: number, reason: string) =>
+      api.post(`/folders/${id}/request-access`, { reason }),
+    accessRequests:()                => api.get('/folder-access-requests'),
+    approveAccess: (id: number)      =>
+      api.post(`/folder-access-requests/${id}/approve`),
+    rejectAccess:  (id: number, reason: string) =>
+      api.post(`/folder-access-requests/${id}/reject`, { reason }),
+    listAll: () => api.get('/folders', { params: { all: true } }),
+  }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
 export const dashboardService = {

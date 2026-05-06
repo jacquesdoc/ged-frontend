@@ -1,19 +1,29 @@
-import { useState, useRef } from 'react'
-import { documentService } from '../../services/api'
+import { useState, useRef, useEffect } from 'react'
+import { documentService, folderService } from '../../services/api'
 
 interface Props {
-  onClose:   () => void
-  onSuccess: () => void
+  onClose:         () => void
+  onSuccess:       () => void
+  defaultFolderId?: number
+  defaultFolderName?: string
 }
 
-export default function UploadModal({ onClose, onSuccess }: Props) {
+export default function UploadModal({ onClose, onSuccess, defaultFolderId, defaultFolderName }: Props) {
   const [name,        setName]        = useState('')
   const [description, setDescription] = useState('')
   const [file,        setFile]        = useState<File | null>(null)
+  const [folderId,    setFolderId]    = useState<string>(defaultFolderId?.toString() || '')
+  const [folders,     setFolders]     = useState<any[]>([])
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
   const [dragOver,    setDragOver]    = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    folderService.list().then(({ data }) => {
+      setFolders(data)
+    }).catch(console.error)
+  }, [])
 
   const handleFile = (f: File) => {
     setFile(f)
@@ -38,15 +48,13 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
       const formData = new FormData()
       formData.append('name', name)
       if (description) formData.append('description', description)
-      if (file) formData.append('file', file)
+      if (file)        formData.append('file', file)
+      if (folderId)    formData.append('folder_id', folderId)
 
       await documentService.create(formData)
       onSuccess()
     } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-        'Erreur lors de la création du document.'
-      )
+      setError(err.response?.data?.message || 'Erreur lors de la création.')
     } finally {
       setLoading(false)
     }
@@ -59,13 +67,9 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">Nouveau document</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-          >✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
         </div>
 
-        {/* Formulaire */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
           {/* Zone de dépôt */}
@@ -80,12 +84,8 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
                 : 'border-gray-200 hover:border-green-400 hover:bg-gray-50'
             }`}
           >
-            <input
-              ref={fileRef}
-              type="file"
-              className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-            />
+            <input ref={fileRef} type="file" className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
             {file ? (
               <div>
                 <div className="text-4xl mb-2">📄</div>
@@ -97,12 +97,8 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
             ) : (
               <div>
                 <div className="text-4xl mb-2">☁️</div>
-                <p className="text-sm font-semibold text-gray-600">
-                  Glissez-déposez un fichier ici
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  ou cliquez pour parcourir — Max 50 MB
-                </p>
+                <p className="text-sm font-semibold text-gray-600">Glissez-déposez un fichier ici</p>
+                <p className="text-xs text-gray-400 mt-1">ou cliquez pour parcourir — Max 50 MB</p>
               </div>
             )}
           </div>
@@ -112,27 +108,52 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nom du document <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Rapport annuel 2024"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none"
-            />
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none" />
           </div>
 
           {/* Description */}
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description optionnelle..." rows={2}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none resize-none" />
+          </div>
+
+          {/* Dossier */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              📁 Dossier de destination
             </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Description optionnelle..."
-              rows={3}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none resize-none"
-            />
+            {defaultFolderId ? (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                <span>📁</span>
+                <span className="text-sm font-semibold text-green-700">
+                  {defaultFolderName || 'Dossier sélectionné'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setFolderId('')}
+                  className="ml-auto text-xs text-gray-400 hover:text-gray-600"
+                >
+                  ✕ Changer
+                </button>
+              </div>
+            ) : (
+              <select
+                value={folderId}
+                onChange={(e) => setFolderId(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-green-600 focus:outline-none bg-white"
+              >
+                <option value="">— Aucun dossier (racine) —</option>
+                {folders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    📁 {f.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Erreur */}
@@ -144,18 +165,12 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
 
           {/* Boutons */}
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
-            >
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-300 text-white font-semibold rounded-xl transition-colors text-sm"
-            >
+            <button type="submit" disabled={loading}
+              className="flex-1 py-2.5 bg-green-700 hover:bg-green-800 disabled:bg-green-300 text-white font-semibold rounded-xl transition-colors text-sm">
               {loading ? 'Enregistrement...' : 'Créer le document'}
             </button>
           </div>
