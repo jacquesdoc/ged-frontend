@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { documentService, tagService } from '../services/api'
+import { documentService } from '../services/api'
 import UploadModal from '../components/documents/UploadModal'
+import PreviewModal from '../components/documents/PreviewModal'
 
 interface Document {
   id: number
@@ -35,7 +36,7 @@ const formatSize = (bytes: number): string => {
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`
 }
 
-const getIcon = (mime: string, ext: string): string => {
+const getIcon = (mime: string): string => {
   if (mime?.includes('pdf'))         return '📄'
   if (mime?.startsWith('image/'))    return '🖼️'
   if (mime?.includes('word'))        return '📝'
@@ -44,12 +45,13 @@ const getIcon = (mime: string, ext: string): string => {
 }
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState<Document[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [search,    setSearch]    = useState('')
-  const [status,    setStatus]    = useState('')
-  const [showUpload, setShowUpload] = useState(false)
-  const [total,     setTotal]     = useState(0)
+  const [documents,   setDocuments]   = useState<Document[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [search,      setSearch]      = useState('')
+  const [status,      setStatus]      = useState('')
+  const [showUpload,  setShowUpload]  = useState(false)
+  const [total,       setTotal]       = useState(0)
+  const [previewDoc,  setPreviewDoc]  = useState<Document | null>(null)
 
   const fetchDocuments = async () => {
     setLoading(true)
@@ -68,12 +70,10 @@ export default function DocumentsPage() {
     }
   }
 
-  useEffect(() => {
-    fetchDocuments()
-  }, [search, status])
+  useEffect(() => { fetchDocuments() }, [search, status])
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Supprimer ce document ?')) return
+    if (!window.confirm('Supprimer ce document ?')) return
     try {
       await documentService.delete(id)
       fetchDocuments()
@@ -86,18 +86,20 @@ export default function DocumentsPage() {
     try {
       const { data } = await documentService.download(doc.id)
       const url  = window.URL.createObjectURL(new Blob([data]))
-      const link = document.createElement('a')
+      const link = window.document.createElement('a')
       link.href  = url
       link.setAttribute('download', doc.name)
-      document.body.appendChild(link)
+      window.document.body.appendChild(link)
       link.click()
       link.remove()
+      window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error(err)
     }
   }
 
   const handleArchive = async (id: number) => {
+    if (!window.confirm('Archiver ce document ?')) return
     try {
       await documentService.archive(id)
       fetchDocuments()
@@ -129,7 +131,6 @@ export default function DocumentsPage() {
 
         {/* Filtres */}
         <div className="flex flex-wrap gap-3 mb-6">
-          {/* Recherche */}
           <div className="relative flex-1 min-w-64">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
             <input
@@ -141,7 +142,6 @@ export default function DocumentsPage() {
             />
           </div>
 
-          {/* Filtre statut */}
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -153,7 +153,6 @@ export default function DocumentsPage() {
             ))}
           </select>
 
-          {/* Bouton rafraîchir */}
           <button
             onClick={fetchDocuments}
             className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm hover:bg-gray-50 transition-colors"
@@ -180,13 +179,13 @@ export default function DocumentsPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nom</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Statut</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Taille</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Version</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Auteur</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Nom</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Taille</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Version</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Auteur</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -196,14 +195,14 @@ export default function DocumentsPage() {
                     <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{getIcon(doc.mime_type, doc.extension)}</span>
+                          <span className="text-2xl">{getIcon(doc.mime_type)}</span>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{doc.name}</p>
                             {doc.folder && (
                               <p className="text-xs text-gray-400">📁 {doc.folder.name}</p>
                             )}
                             {doc.tags && doc.tags.length > 0 && (
-                              <div className="flex gap-1 mt-1">
+                              <div className="flex gap-1 mt-1 flex-wrap">
                                 {doc.tags.map((tag) => (
                                   <span
                                     key={tag.id}
@@ -242,32 +241,32 @@ export default function DocumentsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
+                          {/* Prévisualiser */}
+                          <button
+                            onClick={() => setPreviewDoc(doc)}
+                            title="Prévisualiser"
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          >👁️</button>
                           {/* Télécharger */}
                           <button
                             onClick={() => handleDownload(doc)}
                             title="Télécharger"
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            ⬇️
-                          </button>
+                          >⬇️</button>
                           {/* Archiver */}
                           {!doc.is_archived && (
                             <button
                               onClick={() => handleArchive(doc.id)}
                               title="Archiver"
                               className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            >
-                              🗄️
-                            </button>
+                            >🗄️</button>
                           )}
                           {/* Supprimer */}
                           <button
                             onClick={() => handleDelete(doc.id)}
                             title="Supprimer"
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            🗑️
-                          </button>
+                          >🗑️</button>
                         </div>
                       </td>
                     </tr>
@@ -284,6 +283,14 @@ export default function DocumentsPage() {
         <UploadModal
           onClose={() => setShowUpload(false)}
           onSuccess={() => { setShowUpload(false); fetchDocuments() }}
+        />
+      )}
+
+      {/* Modal Prévisualisation */}
+      {previewDoc && (
+        <PreviewModal
+          document={previewDoc}
+          onClose={() => setPreviewDoc(null)}
         />
       )}
     </div>

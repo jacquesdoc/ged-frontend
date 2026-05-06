@@ -2,20 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/api'
 
-const navItems = [
-  { path: '/dashboard',  icon: '🏠', label: 'Tableau de bord' },
-  { path: '/documents',  icon: '📄', label: 'Documents' },
-  { path: '/folders',    icon: '📁', label: 'Dossiers' },
-  { path: '/workflows',  icon: '🔄', label: 'Workflows' },
-  { path: '/audit',      icon: '🛡️', label: 'Journal d\'audit' },
-]
-
-const adminItems = [
-  { path: '/users',      icon: '👥', label: 'Utilisateurs' },
-]
-
 export default function Sidebar() {
-  const navigate        = useNavigate()
+  const navigate              = useNavigate()
   const { user, logout, isAdmin } = useAuthStore()
 
   const handleLogout = async () => {
@@ -23,6 +11,16 @@ export default function Sidebar() {
     logout()
     navigate('/login')
   }
+
+  const navItems = [
+    { path: '/dashboard',  icon: '🏠', label: 'Tableau de bord',   show: true },
+    { path: '/documents',  icon: '📄', label: 'Documents',          show: true },
+    { path: '/folders',    icon: '📁', label: 'Dossiers',           show: true },
+    { path: '/workflows',  icon: '🔄', label: 'Workflows',          show: true },
+    { path: '/audit',      icon: '🛡️', label: 'Journal d\'audit',  show: isAdmin() },
+    { path: '/users',      icon: '👥', label: 'Utilisateurs',       show: isAdmin() },
+    { path: '/groups',     icon: '🏢', label: 'Groupes',            show: isAdmin() },
+  ]
 
   return (
     <aside className="w-60 bg-green-950 flex flex-col h-screen flex-shrink-0">
@@ -42,7 +40,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => (
+        {navItems.filter(item => item.show).map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -58,33 +56,6 @@ export default function Sidebar() {
             {item.label}
           </NavLink>
         ))}
-
-        {/* Admin uniquement */}
-        {isAdmin() && (
-          <>
-            <div className="pt-4 pb-2">
-              <p className="text-xs font-semibold text-green-600 uppercase tracking-wider px-3">
-                Administration
-              </p>
-            </div>
-            {adminItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-green-700 text-white'
-                      : 'text-green-300 hover:bg-green-900 hover:text-white'
-                  }`
-                }
-              >
-                <span className="text-base">{item.icon}</span>
-                {item.label}
-              </NavLink>
-            ))}
-          </>
-        )}
       </nav>
 
       {/* Utilisateur connecté */}

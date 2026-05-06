@@ -62,9 +62,7 @@ export default function UploadModal({ onClose, onSuccess }: Props) {
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
 
         {/* Formulaire */}

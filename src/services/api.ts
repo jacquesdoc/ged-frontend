@@ -48,6 +48,8 @@ export const documentService = {
   delete:   (id: number)      => api.delete(`/documents/${id}`),
   download: (id: number)      =>
     api.get(`/documents/${id}/download`, { responseType: 'blob' }),
+  preview:  (id: number)      =>
+    `${import.meta.env.VITE_API_URL}/documents/${id}/preview`,
   archive:  (id: number)      => api.post(`/documents/${id}/archive`),
   restore:  (id: number)      => api.post(`/documents/${id}/restore`),
   addComment: (id: number, content: string) =>
@@ -112,4 +114,17 @@ export const auditService = {
   list:   (params?: object) => api.get('/audit', { params }),
   export: (params?: object) => api.get('/audit/export', { params, responseType: 'blob' }),
   stats:  ()                => api.get('/audit/stats'),
+}
+
+// ── Groupes ───────────────────────────────────────────────────────────────
+export const groupService = {
+  list:               ()                    => api.get('/user-groups'),
+  create:             (data: object)        => api.post('/user-groups', data),
+  update:             (id: number, data: object) => api.put(`/user-groups/${id}`, data),
+  delete:             (id: number)          => api.delete(`/user-groups/${id}`),
+  grantFolderAccess:  (id: number, data: object) =>
+    api.post(`/user-groups/${id}/folder-access`, data),
+  pendingAccess:      ()                    => api.get('/pending-folder-access'),
+  approveAccess:      (groupId: number, folderId: number) =>
+    api.put(`/user-groups/${groupId}/folder-access/${folderId}/approve`),
 }
