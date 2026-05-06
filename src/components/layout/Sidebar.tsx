@@ -20,6 +20,7 @@ export default function Sidebar() {
     { path: '/audit',      icon: '🛡️', label: 'Journal d\'audit',  show: isAdmin() },
     { path: '/users',      icon: '👥', label: 'Utilisateurs',       show: isAdmin() },
     { path: '/groups',     icon: '🏢', label: 'Groupes',            show: isAdmin() },
+    { path: '/profile', icon: '👤', label: 'Mon profil', show: true },
   ]
 
   return (

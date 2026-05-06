@@ -11,6 +11,7 @@ import WorkflowsPage from './pages/WorkflowsPage'
 import AuditPage from './pages/AuditPage'
 import UsersPage from './pages/UsersPage'
 import GroupsPage from './pages/GroupsPage'
+import ProfilePage from './pages/ProfilePage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -78,6 +79,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="profile" element={<ProfilePage />} />
     </Routes>
   )
 }

@@ -152,3 +152,20 @@ export const deletionService = {
     api.post(`/deletion-requests/${id}/reject`, { admin_comment: comment }),
   myRequests: ()                    => api.get('/my-deletion-requests'),
 }
+
+// ── Profil ────────────────────────────────────────────────────────────────
+export const profileService = {
+  get:                ()                    => api.get('/profile'),
+  update:             (data: object)        => api.put('/profile', data),
+  uploadAvatar:       (file: File)          => {
+    const fd = new FormData()
+    fd.append('avatar', file)
+    return api.post('/profile/avatar', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  changePassword:     (data: object)        => api.put('/profile/password', data),
+  updateNotifications:(data: object)        => api.put('/profile/notifications', data),
+  revokeSession:      (id: number)          => api.delete(`/profile/sessions/${id}`),
+  revokeAllSessions:  ()                    => api.delete('/profile/sessions'),
+}
