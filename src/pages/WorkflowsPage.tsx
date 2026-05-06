@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { workflowService, documentService, userService } from '../services/api'
 import PreviewModal from '../components/documents/PreviewModal'
+import { useAuthStore } from '../store/authStore'
 
 interface Workflow {
   id: number
@@ -48,6 +49,8 @@ export default function WorkflowsPage() {
   const [previewWf,     setPreviewWf]     = useState<Workflow | null>(null)
   const [documents,     setDocuments]     = useState<any[]>([])
   const [users,         setUsers]         = useState<any[]>([])
+
+  const { isAdmin, isEditor } = useAuthStore()
 
   // Formulaire création
   const [docId,       setDocId]       = useState('')
@@ -171,6 +174,16 @@ export default function WorkflowsPage() {
       await workflowService.cancel(id)
       fetchAll()
     } catch (err) { console.error(err) }
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Supprimer définitivement ce workflow ?')) return
+    try {
+      await workflowService.delete(id)
+      fetchAll()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Erreur lors de la suppression.')
+    }
   }
 
   return (
@@ -316,33 +329,35 @@ export default function WorkflowsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          {/* Détails avec approbations */}
+                          {/* Détails */}
                           <button
                             onClick={() => handleShowDetail(wf)}
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Voir les détails et motifs"
-                          >
-                            📋
-                          </button>
-                          {/* Prévisualiser le document */}
+                          >📋</button>
+                          {/* Prévisualiser */}
                           {wf.document && (
                             <button
                               onClick={() => setPreviewWf(wf)}
                               className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Prévisualiser le document"
-                            >
-                              👁️
-                            </button>
+                            >👁️</button>
                           )}
                           {/* Annuler */}
                           {wf.status === 'in_review' && (
                             <button
                               onClick={() => handleCancel(wf.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                               title="Annuler"
-                            >
-                              🚫
-                            </button>
+                            >🚫</button>
+                          )}
+                          {/* Supprimer — admin ou éditeur */}
+                          {(isAdmin() || isEditor()) && (
+                            <button
+                              onClick={() => handleDelete(wf.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer définitivement"
+                            >🗑️</button>
                           )}
                         </div>
                       </td>
@@ -455,29 +470,22 @@ export default function WorkflowsPage() {
               </div>
               <button onClick={() => setShowDetail(null)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
             </div>
-
             <div className="p-6 space-y-4">
-
               {loadingDetail ? (
                 <div className="flex items-center justify-center py-10">
-                  <div className="w-8 h-8 border-3 border-green-700 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-8 h-8 border-2 border-green-700 border-t-transparent rounded-full animate-spin"></div>
                   <span className="ml-3 text-sm text-gray-400">Chargement des détails...</span>
                 </div>
               ) : (
                 <>
-                  {/* Infos générales */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-400 mb-1">Type</p>
-                      <p className="text-sm font-semibold text-gray-800">
-                        {typeLabels[showDetail.type] || showDetail.type}
-                      </p>
+                      <p className="text-sm font-semibold text-gray-800">{typeLabels[showDetail.type] || showDetail.type}</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-400 mb-1">Statut</p>
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        statusConfig[showDetail.status]?.classes || 'bg-gray-100 text-gray-700'
-                      }`}>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusConfig[showDetail.status]?.classes || 'bg-gray-100 text-gray-700'}`}>
                         {statusConfig[showDetail.status]?.label || showDetail.status}
                       </span>
                     </div>
@@ -488,14 +496,11 @@ export default function WorkflowsPage() {
                     <div className="bg-gray-50 rounded-xl p-3">
                       <p className="text-xs text-gray-400 mb-1">Échéance</p>
                       <p className="text-sm font-semibold text-gray-800">
-                        {showDetail.due_date
-                          ? new Date(showDetail.due_date).toLocaleDateString('fr-FR')
-                          : '—'}
+                        {showDetail.due_date ? new Date(showDetail.due_date).toLocaleDateString('fr-FR') : '—'}
                       </p>
                     </div>
                   </div>
 
-                  {/* Notes */}
                   {showDetail.notes && (
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
                       <p className="text-xs font-semibold text-blue-700 mb-1">📋 Notes</p>
@@ -503,7 +508,6 @@ export default function WorkflowsPage() {
                     </div>
                   )}
 
-                  {/* Étapes d'approbation */}
                   <div>
                     <p className="text-sm font-bold text-gray-900 mb-3">
                       Circuit de validation ({showDetail.current_step}/{showDetail.steps?.length})
@@ -537,14 +541,11 @@ export default function WorkflowsPage() {
                                  '⏳ En attente'}
                               </span>
                             </div>
-
                             {approval.acted_at && (
                               <p className="text-xs text-gray-400 mb-2">
                                 🕐 {new Date(approval.acted_at).toLocaleString('fr-FR')}
                               </p>
                             )}
-
-                            {/* Motif visible par tous */}
                             {approval.comment && (
                               <div className={`mt-2 p-3 rounded-lg ${
                                 approval.status === 'rejected'
@@ -575,7 +576,6 @@ export default function WorkflowsPage() {
                 </>
               )}
             </div>
-
             <div className="px-6 py-4 border-t border-gray-100">
               <button onClick={() => setShowDetail(null)}
                 className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
@@ -608,7 +608,7 @@ export default function WorkflowsPage() {
         </div>
       )}
 
-      {/* Modal prévisualisation document du workflow */}
+      {/* Modal prévisualisation */}
       {previewWf?.document && (
         <PreviewModal
           document={{

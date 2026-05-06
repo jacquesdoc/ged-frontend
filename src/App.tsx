@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
+import { authService } from './services/api'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -23,6 +25,41 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { token, setAuth, logout } = useAuthStore()
+  const [loading, setLoading] = useState(true)
+
+  // ── Recharger le profil au démarrage si token présent ──────────────────
+  useEffect(() => {
+    const initAuth = async () => {
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      try {
+        const { data } = await authService.me()
+        setAuth(data, token)
+      } catch (err) {
+        // Token expiré ou invalide
+        logout()
+      } finally {
+        setLoading(false)
+      }
+    }
+    initAuth()
+  }, [])
+
+  // Afficher un écran de chargement pendant la vérification du token
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500 text-sm">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -35,11 +72,9 @@ export default function App() {
         <Route path="documents"  element={<DocumentsPage />} />
         <Route path="folders"    element={<FoldersPage />} />
         <Route path="workflows"  element={<WorkflowsPage />} />
-
-        {/* Routes admin seulement */}
-        <Route path="audit"  element={<AdminRoute><AuditPage /></AdminRoute>} />
-        <Route path="users"  element={<AdminRoute><UsersPage /></AdminRoute>} />
-        <Route path="groups" element={<AdminRoute><GroupsPage /></AdminRoute>} />
+        <Route path="audit"      element={<AdminRoute><AuditPage /></AdminRoute>} />
+        <Route path="users"      element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="groups"     element={<AdminRoute><GroupsPage /></AdminRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />

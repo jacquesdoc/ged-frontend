@@ -92,6 +92,7 @@ export const workflowService = {
     api.post(`/workflows/${id}/reject`, { comment }),
   cancel:           (id: number)      => api.post(`/workflows/${id}/cancel`),
   pendingApprovals: ()                => api.get('/pending-approvals'),
+  delete: (id: number) => api.delete(`/workflows/${id}`),
 }
 
 // ── Utilisateurs ──────────────────────────────────────────────────────────
@@ -138,4 +139,16 @@ export const notificationService = {
   unread:  ()           => api.get('/notifications/unread'),
   markRead:(id: string) => api.post(`/notifications/${id}/read`),
   markAll: ()           => api.post('/notifications/read-all'),
+}
+
+// ── Demandes de suppression ───────────────────────────────────────────────
+export const deletionService = {
+  list:       ()                    => api.get('/deletion-requests'),
+  pending:    ()                    => api.get('/deletion-requests/pending'),
+  create:     (data: object)        => api.post('/deletion-requests', data),
+  approve:    (id: number, data?: object) =>
+    api.post(`/deletion-requests/${id}/approve`, data || {}),
+  reject:     (id: number, comment: string) =>
+    api.post(`/deletion-requests/${id}/reject`, { admin_comment: comment }),
+  myRequests: ()                    => api.get('/my-deletion-requests'),
 }
