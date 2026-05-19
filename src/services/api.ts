@@ -177,3 +177,39 @@ export const profileService = {
   revokeSession:      (id: number)          => api.delete(`/profile/sessions/${id}`),
   revokeAllSessions:  ()                    => api.delete('/profile/sessions'),
 }
+
+// ── OCR ───────────────────────────────────────────────────────────────────
+export const ocrService = {
+  process: (id: number) => api.post(`/documents/${id}/ocr`),
+  getText: (id: number) => api.get(`/documents/${id}/ocr`),
+  status:  ()           => api.get('/ocr/status'),
+}
+
+// ── IA / LLM ──────────────────────────────────────────────────────────────
+export const aiService = {
+  status:   ()                             => api.get('/ai/status'),
+  analyze:  (id: number)                   => api.post(`/documents/${id}/ai/analyze`),
+  summarize:(id: number)                   => api.post(`/documents/${id}/ai/summary`),
+  chat:     (id: number, question: string) =>
+    api.post(`/documents/${id}/ai/chat`, { question }),
+}
+
+// ── Assistant GED IA ──────────────────────────────────────────────────────
+export const assistantService = {
+  chat:        (message: string, history: any[]) =>
+    api.post('/assistant/chat', { message, history }),
+  suggestions: () => api.get('/assistant/suggestions'),
+}
+
+// ── Recherche semantique ──────────────────────────────────────────────────
+export const semanticSearchService = {
+  search:      (query: string) => api.post('/semantic-search', { query }),
+  indexStatus: ()              => api.get('/semantic-search/status'),
+}
+
+// ── Chat Search ───────────────────────────────────────────────────────────
+export const chatSearchService = {
+  chat:        (message: string, history: any[]) =>
+    api.post('/chat-search', { message, history }),
+  suggestions: () => api.get('/chat-search/suggestions'),
+}

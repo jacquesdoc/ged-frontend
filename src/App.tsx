@@ -12,6 +12,8 @@ import AuditPage from './pages/AuditPage'
 import UsersPage from './pages/UsersPage'
 import GroupsPage from './pages/GroupsPage'
 import ProfilePage from './pages/ProfilePage'
+import SemanticSearchPage from './pages/SemanticSearchPage'
+import ChatSearchPage from './pages/ChatSearchPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token)
@@ -29,18 +31,13 @@ export default function App() {
   const { token, setAuth, logout } = useAuthStore()
   const [loading, setLoading] = useState(true)
 
-  // ── Recharger le profil au démarrage si token présent ──────────────────
   useEffect(() => {
     const initAuth = async () => {
-      if (!token) {
-        setLoading(false)
-        return
-      }
+      if (!token) { setLoading(false); return }
       try {
         const { data } = await authService.me()
         setAuth(data, token)
       } catch (err) {
-        // Token expiré ou invalide
         logout()
       } finally {
         setLoading(false)
@@ -49,7 +46,6 @@ export default function App() {
     initAuth()
   }, [])
 
-  // Afficher un écran de chargement pendant la vérification du token
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -63,23 +59,32 @@ export default function App() {
 
   return (
     <Routes>
+
+      {/* Page de connexion */}
       <Route path="/login" element={<LoginPage />} />
 
+      {/* Chat Search — page independante SANS sidebar */}
+      <Route path="/chat-search" element={
+        <PrivateRoute><ChatSearchPage /></PrivateRoute>
+      } />
+
+      {/* Application principale AVEC sidebar */}
       <Route path="/" element={
         <PrivateRoute><Layout /></PrivateRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"  element={<DashboardPage />} />
-        <Route path="documents"  element={<DocumentsPage />} />
-        <Route path="folders"    element={<FoldersPage />} />
-        <Route path="workflows"  element={<WorkflowsPage />} />
-        <Route path="audit"      element={<AdminRoute><AuditPage /></AdminRoute>} />
-        <Route path="users"      element={<AdminRoute><UsersPage /></AdminRoute>} />
-        <Route path="groups"     element={<AdminRoute><GroupsPage /></AdminRoute>} />
+        <Route path="dashboard"       element={<DashboardPage />} />
+        <Route path="documents"       element={<DocumentsPage />} />
+        <Route path="folders"         element={<FoldersPage />} />
+        <Route path="workflows"       element={<WorkflowsPage />} />
+        <Route path="profile"         element={<ProfilePage />} />
+        <Route path="semantic-search" element={<SemanticSearchPage />} />
+        <Route path="audit"  element={<AdminRoute><AuditPage /></AdminRoute>} />
+        <Route path="users"  element={<AdminRoute><UsersPage /></AdminRoute>} />
+        <Route path="groups" element={<AdminRoute><GroupsPage /></AdminRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
-      <Route path="profile" element={<ProfilePage />} />
     </Routes>
   )
 }
